@@ -23,13 +23,26 @@ enum class ContentType(val apiValue: String, val label: String) {
  *   pluto://series/{id}/season/{season}/episode/{episode}
  */
 object PlutoDeepLinks {
+    /**
+     * Deep link scheme — registered in AndroidManifest.xml
+     *   <data android:scheme="pluto" />
+     *
+     * The host segment is part of the path itself (`movie` / `series`),
+     * so we don't define a separate `HOST` constant. Deep-link URLs are:
+     *   pluto://movie/{id}
+     *   pluto://series/{id}
+     *   pluto://series/{id}/season/{s}/episode/{e}
+     */
     const val SCHEME = "pluto"
-    const val HOST = "app"
 
     fun movie(id: Int): String = "$SCHEME://movie/$id"
     fun series(id: Int): String = "$SCHEME://series/$id"
     fun episode(seriesId: Int, season: Int, episode: Int): String =
         "$SCHEME://series/$seriesId/season/$season/episode/$episode"
+
+    /** True if the given URI string is a PLUTO deep link. */
+    fun isPlutoUri(uri: String?): Boolean =
+        uri != null && uri.startsWith("$SCHEME://")
 }
 
 /**

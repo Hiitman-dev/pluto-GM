@@ -12,6 +12,7 @@ import androidx.work.WorkerParameters
 import com.pluto.core.common.PlutoLogger
 import com.pluto.core.data.SettingsRepository
 import com.pluto.core.database.dao.FollowedSeriesDao
+import com.pluto.core.model.NewEpisodeNotification
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.first

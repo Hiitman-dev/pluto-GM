@@ -59,6 +59,25 @@ class SeriesNormalizerTest {
     }
 
     @Test
+    fun `normalizes quality with uppercase resolution pair`() {
+        assertThat(SeriesNormalizer.normalizeQualityHeight("1280X720")).isEqualTo(720)
+        assertThat(SeriesNormalizer.normalizeQualityHeight("1920X1080")).isEqualTo(1080)
+    }
+
+    @Test
+    fun `does not over-redact 4K when 4 appears as a digit in resolution`() {
+        // "4K 3840x2160" should resolve to 2160 (the 4K alias wins), NOT 3840
+        assertThat(SeriesNormalizer.normalizeQualityHeight("4K 3840x2160")).isEqualTo(2160)
+    }
+
+    @Test
+    fun `normalizes 1440 without 2K alias`() {
+        // 1440 alone (no "2K" / "QHD" alias) should still resolve via numeric extraction
+        assertThat(SeriesNormalizer.normalizeQualityHeight("1440")).isEqualTo(1440)
+        assertThat(SeriesNormalizer.normalizeQualityHeight("1440p")).isEqualTo(1440)
+    }
+
+    @Test
     fun `canonical labels are correct`() {
         assertThat(SeriesNormalizer.canonicalQualityLabel(2160, "4K")).isEqualTo("4K")
         assertThat(SeriesNormalizer.canonicalQualityLabel(1440, "1440p")).isEqualTo("1440p")

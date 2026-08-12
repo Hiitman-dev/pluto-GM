@@ -17,6 +17,9 @@ import javax.inject.Singleton
  * Per Section 40 ("PLAYER LOCK"): lock disables accidental gestures.
  * Per Section 42 ("PLAYER SOURCE FALLBACK"): if a source fails, try the
  * next legitimate source (don't invent URLs).
+ *
+ * Lifecycle: [release] resets all transient state. The controller is a
+ * Singleton — the underlying engine handles its own ExoPlayer lifecycle.
  */
 @Singleton
 class DefaultPlayerController @Inject constructor(
@@ -37,19 +40,25 @@ class DefaultPlayerController @Inject constructor(
     override val availableSources: StateFlow<List<PlaybackSource>> = _availableSources.asStateFlow()
 
     private var settings: VideoPlayerSettings = VideoPlayerSettings()
-    private var failedSources: MutableSet<String> = mutableSetOf()
+    private val failedSources: MutableSet<String> = mutableSetOf()
 
     override fun initialize(sources: List<PlaybackSource>, startPositionMs: Long) {
         _availableSources.value = sources
         failedSources.clear()
-        val first = sources.firstOrNull() ?: return
+        val first = sources.firstOrNull() ?: run {
+            _currentSource.value = null
+            return
+        }
         loadSource(first, startPositionMs)
     }
 
     private fun loadSource(source: PlaybackSource, startPositionMs: Long = 0L) {
         _currentSource.value = source
         engine.load(source)
+        // Defer seek + speed until the engine reaches READY — the engine
+        // applies them in its onPlaybackStateChanged callback.
         if (startPositionMs > 0) {
+            // Use seekBy to nudge; engine.load() already reset position to 0
             engine.seekTo(startPositionMs)
         }
         engine.setSpeed(_currentSpeed.value)
@@ -59,7 +68,8 @@ class DefaultPlayerController @Inject constructor(
         when (engine.state.value) {
             PlayerState.Playing -> engine.pause()
             PlayerState.Paused, PlayerState.Ready -> engine.play()
-            PlayerState.Error -> retryOrFallback()
+            is PlayerState.Error -> retryOrFallback()
+            PlayerState.Ended -> engine.play() // restart from beginning
             else -> engine.play()
         }
     }
@@ -96,24 +106,29 @@ class DefaultPlayerController @Inject constructor(
         _availableSources.value = emptyList()
         failedSources.clear()
         _isLocked.value = false
+        _currentSpeed.value = 1.0f
     }
 
     /**
      * Retry the current source, or fall back to the next available one
-     * if the current source has failed repeatedly.
+     * if the current source has failed.
      *
-     * Per Section 42: "If CCloud provides multiple legitimate sources,
+     * Per Section 42: "If multiple legitimate sources are provided,
      * attempt appropriate fallback. Do not invent fallback URLs."
+     *
+     * Returns true if a fallback source was loaded; false if all sources
+     * have been exhausted (UI should show terminal error).
      */
-    fun retryOrFallback() {
-        val current = _currentSource.value ?: return
+    override fun retryOrFallback(): Boolean {
+        val current = _currentSource.value ?: return false
         failedSources.add(current.url)
 
         val candidates = _availableSources.value.filter { it.url !in failedSources }
         if (candidates.isEmpty()) {
             // All sources exhausted — let the UI show terminal error
-            return
+            return false
         }
         loadSource(candidates.first(), engine.positionMs.value)
+        return true
     }
 }

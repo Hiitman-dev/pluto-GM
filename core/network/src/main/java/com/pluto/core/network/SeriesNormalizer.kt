@@ -138,21 +138,35 @@ object SeriesNormalizer {
      *   "1080", "1080p", "1080P", "FullHD", "FHD"
      *   "480", "480p", "SD"
      *   "1440", "1440p", "2K"
+     *
+     * For "WIDTHxHEIGHT" patterns (e.g. "1280x720"), returns the HEIGHT
+     * (the second number) — not the first.
      */
     fun normalizeQualityHeight(quality: String): Int {
         val q = quality.trim().uppercase()
 
-        // Direct numeric extraction (e.g. "720", "720p", "720P", "HD 720", "1080x1920")
+        // Word-based aliases first (before numeric extraction, so "4K" wins
+        // over a stray "4" digit and "FullHD" wins over substring digits).
+        when {
+            q.contains("4K") || q.contains("UHD") -> return 2160
+            q.contains("2K") || q.contains("QHD") -> return 1440
+            q.contains("FULLHD") || q.contains("FHD") -> return 1080
+        }
+
+        // "WIDTHxHEIGHT" — return the HEIGHT (second number)
+        val resolutionPair = Regex("(\\d{3,4})[xX](\\d{3,4})").find(q)
+        if (resolutionPair != null) {
+            return resolutionPair.groupValues[2].toInt()
+        }
+
+        // Plain numeric extraction (e.g. "720", "720p", "720P", "HD 720")
         val match = Regex("(\\d{3,4})").find(q)
         if (match != null) {
             return match.groupValues[1].toInt()
         }
 
-        // Word-based aliases
+        // Remaining word-based aliases
         return when {
-            q.contains("4K") || q.contains("UHD") -> 2160
-            q.contains("2K") || q.contains("QHD") || q.contains("1440") -> 1440
-            q.contains("FULLHD") || q.contains("FHD") -> 1080
             q.contains("HD") -> 720
             q.contains("SD") -> 480
             else -> 0

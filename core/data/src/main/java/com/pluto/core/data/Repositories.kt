@@ -7,6 +7,7 @@ import com.pluto.core.database.dao.FavoriteDao
 import com.pluto.core.database.dao.HistoryDao
 import com.pluto.core.database.dao.PlaybackProgressDao
 import com.pluto.core.database.dao.RecentSearchDao
+import com.pluto.core.database.entity.HistoryEntity
 import com.pluto.core.database.entity.RecentSearchEntity
 import com.pluto.core.model.FavoriteItem
 import com.pluto.core.model.Movie
@@ -71,11 +72,12 @@ class HistoryRepository @Inject constructor(
     private val progressDao: PlaybackProgressDao,
     private val dispatchers: DispatcherProvider
 ) {
-    fun observeRecent(limit: Int = 20) =
+    fun observeRecent(limit: Int = 20): Flow<List<HistoryEntity>> =
         historyDao.observeRecent(limit)
 
-    fun observeContinueWatching(limit: Int = 12) =
+    fun observeContinueWatching(limit: Int = 12): Flow<List<PlaybackProgress>> =
         progressDao.observeContinueWatching(limit)
+            .map { list -> list.map(Mappers::entityToProgress) }
 
     suspend fun markViewed(
         contentType: String,

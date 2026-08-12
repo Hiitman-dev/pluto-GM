@@ -1,10 +1,13 @@
 package com.pluto.core.media
 
 import android.content.Context
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import com.pluto.core.common.PlutoLogger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -24,28 +27,34 @@ import javax.inject.Singleton
 /**
  * Media3PlayerEngine — ExoPlayer-backed implementation of [PlayerEngine].
  *
- * Per Section 4 ("TECHNOLOGY STACK") of the master spec:
- *   "Preferred starting point: Kotlin + Compose + Media3. But Media3 is
- *    NOT an absolute restriction."
+ * Lifecycle invariants:
+ *   - The polling [scope] lives for the lifetime of the Singleton.
+ *     It is NOT cancelled in [release]; only the active [pollingJob] is.
+ *     This allows the engine to be re-used after release (e.g. when the
+ *     user exits the player screen and later returns).
+ *   - The ExoPlayer instance is created lazily on first [load] and
+ *     released in [release]. A new instance is created on the next load.
+ *   - All state flows are reset to defaults in [release] so the UI never
+ *     shows stale position / duration values from a previous playback.
  *
- * Media3 is chosen because:
- *   1. Best-in-class format support (MP4, MKV, HLS, DASH)
- *   2. First-party AndroidX library — guaranteed long-term support
- *   3. Native PiP, subtitle, audio-track APIs
- *   4. No NDK required
- *
- * LibVLC would be added as a separate Engine if broader format support
- * is needed in the future (the [PlayerEngine] abstraction makes this
- * a drop-in replacement).
+ * Thread safety:
+ *   - ExoPlayer must be created and accessed on the main thread.
+ *     [scope] uses Dispatchers.Main.immediate so polling is safe.
+ *   - [load], [play], [pause], [seekTo], [seekBy], [setSpeed], [setVolume],
+ *     [switchSource], [release] may be called from any thread — they
+ *     dispatch to the main thread when needed via [scope.launch].
  */
 @Singleton
 class Media3PlayerEngine @Inject constructor(
     @ApplicationContext private val context: Context
 ) : PlayerEngine {
 
-    private var player: ExoPlayer? = null
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var pollingJob: Job? = null
+
+    private var player: ExoPlayer? = null
+    private var pendingSpeed: Float = 1.0f
+    private var pendingSeekMs: Long? = null
 
     private val _state = MutableStateFlow<PlayerState>(PlayerState.Idle)
     override val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -63,12 +72,20 @@ class Media3PlayerEngine @Inject constructor(
 
     private val listener = object : Player.Listener {
         override fun onPlaybackStateChanged(playbackState: Int) {
-            _state.value = when (playbackState) {
-                Player.STATE_IDLE -> PlayerState.Idle
-                Player.STATE_BUFFERING -> PlayerState.Buffering
-                Player.STATE_READY -> if (player?.isPlaying == true) PlayerState.Playing else PlayerState.Paused
-                Player.STATE_ENDED -> PlayerState.Ended
-                else -> PlayerState.Idle
+            when (playbackState) {
+                Player.STATE_IDLE -> _state.value = PlayerState.Idle
+                Player.STATE_BUFFERING -> _state.value = PlayerState.Buffering
+                Player.STATE_READY -> {
+                    // Apply any pending seek / speed once the player is ready
+                    pendingSeekMs?.let { pos ->
+                        player?.seekTo(pos)
+                        pendingSeekMs = null
+                    }
+                    player?.setPlaybackSpeed(pendingSpeed.coerceIn(0.25f, 4f))
+                    _state.value = if (player?.isPlaying == true) PlayerState.Playing else PlayerState.Paused
+                }
+                Player.STATE_ENDED -> _state.value = PlayerState.Ended
+                else -> _state.value = PlayerState.Idle
             }
         }
 
@@ -121,6 +138,14 @@ class Media3PlayerEngine @Inject constructor(
 
     override fun load(source: PlaybackSource) {
         currentSource = source
+        // Reset stale state before loading the new source — the UI must not
+        // show the previous video's position / duration while the new one
+        // is buffering.
+        _positionMs.value = 0L
+        _durationMs.value = 0L
+        _bufferedMs.value = 0L
+        pendingSeekMs = null
+
         val p = ensurePlayer()
         val mediaItem = MediaItem.Builder()
             .setUri(source.url)
@@ -131,12 +156,20 @@ class Media3PlayerEngine @Inject constructor(
         _state.value = PlayerState.Buffering
     }
 
-    override fun play() { player?.play() }
+    override fun play() {
+        // Resume from ENDED state by re-preparing from the start
+        if (_state.value is PlayerState.Ended) {
+            player?.seekTo(0)
+        }
+        player?.play()
+    }
+
     override fun pause() { player?.pause() }
 
     override fun seekTo(positionMs: Long) {
-        player?.seekTo(positionMs.coerceAtLeast(0L))
-        _positionMs.value = positionMs
+        val target = positionMs.coerceAtLeast(0L)
+        player?.seekTo(target)
+        _positionMs.value = target
     }
 
     override fun seekBy(deltaMs: Long) {
@@ -147,6 +180,7 @@ class Media3PlayerEngine @Inject constructor(
     }
 
     override fun setSpeed(speed: Float) {
+        pendingSpeed = speed
         player?.setPlaybackSpeed(speed.coerceIn(0.25f, 4f))
     }
 
@@ -154,27 +188,46 @@ class Media3PlayerEngine @Inject constructor(
         player?.volume = volume.coerceIn(0f, 1f)
     }
 
+    @OptIn(UnstableApi::class)
+    override fun attach(view: PlayerView) {
+        view.player = ensurePlayer()
+    }
+
+    override fun detach(view: PlayerView) {
+        view.player = null
+    }
+
     override fun switchSource(source: PlaybackSource) {
         val p = player ?: return
         val currentPosition = p.currentPosition
         currentSource = source
+        // Defer the seek until STATE_READY of the new source — seeking
+        // immediately after setMediaItem can be lost on some devices.
+        pendingSeekMs = currentPosition
         val mediaItem = MediaItem.Builder()
             .setUri(source.url)
             .apply { source.mimeType?.let { setMimeType(it) } }
             .build()
         p.setMediaItem(mediaItem)
         p.prepare()
-        p.seekTo(currentPosition)
-        p.play()
+        _state.value = PlayerState.Buffering
     }
 
+    /**
+     * Release the underlying ExoPlayer instance and reset all state.
+     *
+     * NOTE: The polling [scope] is intentionally NOT cancelled — it
+     * lives for the lifetime of the Singleton so a new ExoPlayer can
+     * be created by a subsequent [load] call. Cancelling the scope
+     * would silently break polling for the rest of the process.
+     */
     override fun release() {
         pollingJob?.cancel()
         pollingJob = null
         player?.removeListener(listener)
         player?.release()
         player = null
-        scope.cancel()
+        pendingSeekMs = null
         _state.value = PlayerState.Idle
         _positionMs.value = 0L
         _durationMs.value = 0L

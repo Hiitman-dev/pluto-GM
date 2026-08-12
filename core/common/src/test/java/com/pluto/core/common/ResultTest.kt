@@ -89,4 +89,26 @@ class ResultTest {
         assertThat(redacted).doesNotContain("hunter2")
         assertThat(redacted).doesNotContain("xyz")
     }
+
+    @Test
+    fun `redact does not over-redact substrings of legitimate words`() {
+        // "monkey" contains "key" but should NOT be redacted
+        assertThat(PlutoLogger.redact("monkey=food")).contains("monkey=food")
+        // "author" contains "auth" but should NOT be redacted
+        assertThat(PlutoLogger.redact("author=alice")).contains("author=alice")
+        // "donkey" contains "key" but should NOT be redacted
+        assertThat(PlutoLogger.redact("donkey")).isEqualTo("donkey")
+        // "keyboard" contains "key" but should NOT be redacted
+        assertThat(PlutoLogger.redact("keyboard=input")).contains("keyboard=input")
+        // "tokenize" contains "token" but should NOT be redacted
+        assertThat(PlutoLogger.redact("tokenize=split")).contains("tokenize=split")
+    }
+
+    @Test
+    fun `redact preserves non-sensitive content`() {
+        val input = "User a@b.com searched for 'batman' at 14:32"
+        val redacted = PlutoLogger.redact(input)
+        assertThat(redacted).contains("batman")
+        assertThat(redacted).contains("14:32")
+    }
 }

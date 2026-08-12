@@ -21,7 +21,7 @@ object PlutoLogger {
     @Volatile
     var level: LogLevel = LogLevel.VERBOSE
 
-    private val SENSITIVE_KEYS = setOf(
+    private val SENSITIVE_KEYS = listOf(
         "api_key", "apikey", "api-key",
         "password", "passwd", "pwd",
         "token", "auth", "authorization",
@@ -45,18 +45,55 @@ object PlutoLogger {
     }
 
     /**
-     * Redact — replace any value paired with a sensitive key with `***`.
-     * Handles `key=value`, `key: value`, and JSON snippets.
+     * Redact — replace sensitive values in logs with `***`.
+     *
+     * Handles three patterns:
+     *   1. `key=value` or `key: value` (with optional quotes around value)
+     *      e.g. `password=hunter2`, `"token":"xyz"`, `api-key: secret`
+     *   2. URL path segments that look like opaque API tokens
+     *      (alphanumeric, length >= 12, no dots) — covers CCloud-style
+     *      `/api/.../{API_KEY}` URLs.
+     *   3. Bearer tokens in Authorization headers.
+     *
+     * Word boundaries (`\b`) are used around sensitive keys so that
+     * legitimate words containing "key" (e.g. "monkey", "keyboard") or
+     * "auth" (e.g. "author") are NOT redacted.
      */
     fun redact(input: String): String {
         var result = input
+
+        // Pattern 1: key=value / key:value (case-insensitive key).
+        // The value is delimited by: whitespace, comma, brace, quote, or EOL.
+        // Word boundaries around the key prevent over-redaction of substrings
+        // like "monkey" or "keyboard".
         for (key in SENSITIVE_KEYS) {
-            // Match key=value or key:value (case-insensitive)
-            val regex = Regex("(?i)($key)([=:]\\s*)([\"']?)[^\\s\"',}]+\\3")
-            result = result.replace(regex) { mr ->
-                "${mr.groupValues[1]}${mr.groupValues[2]}${mr.groupValues[3]}***${mr.groupValues[3]}"
+            val escapedKey = Regex.escape(key)
+            // Quoted value: key":"value"  or  key":"value"
+            val quotedRegex = Regex("(?i)(\\b$escapedKey\\b)([\"']?\\s*[:=]\\s*[\"'])([^\"'\\s,}]+)([\"'])")
+            result = result.replace(quotedRegex) { mr ->
+                "${mr.groupValues[1]}${mr.groupValues[2]}***${mr.groupValues[4]}"
+            }
+            // Unquoted value: key=value  or  key: value
+            val unquotedRegex = Regex("(?i)(\\b$escapedKey\\b)(\\s*[:=]\\s*)([^\\s,\"'{}]+)")
+            result = result.replace(unquotedRegex) { mr ->
+                "${mr.groupValues[1]}${mr.groupValues[2]}***"
             }
         }
+
+        // Pattern 2: opaque URL path segments (CCloud-style /api/.../{API_KEY}).
+        // Matches a 12+ character alphanumeric token in a URL path that follows
+        // /api/. We only redact the token itself, not the rest of the URL.
+        val urlTokenRegex = Regex("(/api/[A-Za-z0-9_/]+/)([A-Za-z0-9_\\-]{12,})([/\\s?#]|$)")
+        result = result.replace(urlTokenRegex) { mr ->
+            "${mr.groupValues[1]}***${mr.groupValues[3]}"
+        }
+
+        // Pattern 3: Bearer tokens in Authorization headers.
+        val bearerRegex = Regex("(?i)(Authorization\\s*[:]\\s*Bearer\\s+)([A-Za-z0-9_\\-\\.]+)")
+        result = result.replace(bearerRegex) { mr ->
+            "${mr.groupValues[1]}***"
+        }
+
         return result
     }
 }

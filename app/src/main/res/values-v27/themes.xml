@@ -5,5 +5,8 @@
         <item name="android:statusBarColor">@color/cosmic_void</item>
         <item name="android:navigationBarColor">@color/cosmic_void</item>
         <item name="android:windowLightStatusBar">false</item>
+        <!-- API 27+ attributes -->
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

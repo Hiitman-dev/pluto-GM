@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        PLUTO network security config.
+
+        The CCloud API uses HTTPS for all endpoints, but some video
+        source URLs returned by the API may use HTTP (older CDNs).
+        We allow cleartext traffic only to specific known CDN hosts
+        on port 80 — everything else must use HTTPS.
+
+        Per the spec (Section "Security"): do NOT allow cleartext
+        traffic globally. We pin to known API hosts and explicitly
+        trust localhost for development.
+    -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- The CCloud API servers — explicitly trust system CAs. -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">server-hi-speed-iran.info</domain>
+        <domain includeSubdomains="true">hostinnegar.com</domain>
+        <domain includeSubdomains="true">windowsdiba.info</domain>
+    </domain-config>
+
+    <!-- Local development only (emulator / localhost server) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+
+    <!--
+        Debug-only: in debug builds, allow cleartext globally so developers
+        can sniff traffic with a local proxy (Charles / mitmproxy).
+    -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

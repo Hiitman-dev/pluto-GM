@@ -25,6 +25,8 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:navigation"))
+    implementation(project(":core:download"))
+    implementation(project(":core:notifications"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

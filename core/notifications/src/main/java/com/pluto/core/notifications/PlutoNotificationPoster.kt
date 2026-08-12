@@ -86,7 +86,7 @@ class PlutoNotificationPoster @Inject constructor(
             .setSubText("Season ${notification.seasonNumber} · Episode ${notification.episodeNumber}")
             .setStyle(
                 NotificationCompat.BigTextStyle()
-                    .bigTitle("PLUTO")
+                    .setBigContentTitle("PLUTO")
                     .bigText("${notification.seriesTitle}\nSeason ${notification.seasonNumber} · Episode ${notification.episodeNumber}\nTap to watch")
             )
             .setContentIntent(pendingIntent)

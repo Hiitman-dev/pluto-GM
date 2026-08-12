@@ -18,6 +18,7 @@ import com.pluto.core.network.SearchRepository
 import com.pluto.core.network.SeasonsRepository
 import com.pluto.core.network.SeriesRepository
 import com.pluto.core.network.SeriesNormalizer
+import com.pluto.core.network.fromHttp
 import com.pluto.core.model.Country
 import com.pluto.core.model.NormalizedSeries
 import kotlinx.coroutines.withContext
@@ -50,21 +51,21 @@ class ContentRepository @Inject constructor(
         withContext(dispatchers.io) {
             runCatching { movies.getMovies(page, genreId, filterType) }
                 .map { Result.success(it.filter { m -> m.title.isNotBlank() }) }
-                .getOrElse { Result.error(ApiException.fromException(it)) }
+                .getOrElse { Result.error(ApiException.fromHttp(it)) }
         }
 
     suspend fun getSeries(page: Int, genreId: Int, filterType: FilterType): Result<List<Series>> =
         withContext(dispatchers.io) {
             runCatching { series.getSeries(page, genreId, filterType) }
                 .map { Result.success(it.filter { s -> s.title.isNotBlank() }) }
-                .getOrElse { Result.error(ApiException.fromException(it)) }
+                .getOrElse { Result.error(ApiException.fromHttp(it)) }
         }
 
     suspend fun getSeasons(seriesId: Int): Result<List<Season>> =
         withContext(dispatchers.io) {
             runCatching { seasons.getSeasons(seriesId) }
                 .map(Result.Companion::success)
-                .getOrElse { Result.error(ApiException.fromException(it)) }
+                .getOrElse { Result.error(ApiException.fromHttp(it)) }
         }
 
     suspend fun getNormalizedSeries(series: Series): Result<NormalizedSeries> =
@@ -73,28 +74,28 @@ class ContentRepository @Inject constructor(
                 val rawSeasons = seasons.getSeasons(series.id)
                 SeriesNormalizer.normalize(series, rawSeasons)
             }.map(Result.Companion::success)
-                .getOrElse { Result.error(ApiException.fromException(it)) }
+                .getOrElse { Result.error(ApiException.fromHttp(it)) }
         }
 
     suspend fun search(query: String): Result<SearchResult> =
         withContext(dispatchers.io) {
             runCatching { search.search(query) }
                 .map(Result.Companion::success)
-                .getOrElse { Result.error(ApiException.fromException(it)) }
+                .getOrElse { Result.error(ApiException.fromHttp(it)) }
         }
 
     suspend fun getGenres(): Result<List<Genre>> =
         withContext(dispatchers.io) {
             runCatching { genres.getGenres() }
                 .map(Result.Companion::success)
-                .getOrElse { Result.error(ApiException.fromException(it)) }
+                .getOrElse { Result.error(ApiException.fromHttp(it)) }
         }
 
     suspend fun getCountries(): Result<List<Country>> =
         withContext(dispatchers.io) {
             runCatching { countries.getAllCountries() }
                 .map(Result.Companion::success)
-                .getOrElse { Result.error(ApiException.fromException(it)) }
+                .getOrElse { Result.error(ApiException.fromHttp(it)) }
         }
 
     suspend fun getPostersByCountry(
@@ -104,6 +105,6 @@ class ContentRepository @Inject constructor(
     ): Result<List<Poster>> = withContext(dispatchers.io) {
         runCatching { countryPosters.getPostersByCountry(countryId, page, filterType) }
             .map(Result.Companion::success)
-            .getOrElse { Result.error(ApiException.fromException(it)) }
+            .getOrElse { Result.error(ApiException.fromHttp(it)) }
     }
 }

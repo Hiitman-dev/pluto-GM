@@ -2,4 +2,14 @@
 <resources>
     <string name="app_name">PLUTO</string>
     <string name="app_tagline">Cinema Beyond Earth</string>
+
+    <!-- App shortcuts -->
+    <string name="shortcut_continue_watching">Continue</string>
+    <string name="shortcut_continue_watching_long">Continue Watching</string>
+    <string name="shortcut_search">Search</string>
+    <string name="shortcut_search_long">Search Movies &amp; Series</string>
+    <string name="shortcut_downloads">Downloads</string>
+    <string name="shortcut_downloads_long">My Downloads</string>
+    <string name="shortcut_favorites">Library</string>
+    <string name="shortcut_favorites_long">My Favorites</string>
 </resources>

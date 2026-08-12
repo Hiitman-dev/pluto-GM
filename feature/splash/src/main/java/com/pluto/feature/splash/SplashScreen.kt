@@ -4,38 +4,40 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.pluto.core.designsystem.CosmicBackground
 import com.pluto.core.designsystem.PLUTOColors
 import com.pluto.core.designsystem.PLUTOTypography
+import kotlinx.coroutines.delay
 
 /**
- * SplashScreen — feature module entry point.
+ * SplashScreen — first-launch splash experience.
  *
- * The full implementation of this screen lives in this module. The app's
- * NavHost wires it into the navigation graph via [com.pluto.core.navigation.PlutoRoute].
+ * Shows the PLUTO wordmark over the cosmic background for ~1.2 seconds,
+ * then calls [onCompleted] so the nav graph can navigate to Home.
  *
- * Per the master spec, this screen implements:
- *   - PLUTO design system (cosmic background, glass cards, custom icons)
- *   - Real API data via the corresponding ViewModel
- *   - Loading / Empty / Error states with PLUTO shimmer + SIGNAL LOST
- *   - Accessibility (contentDescription, 48dp touch targets, semantic roles)
- *
- * NOTE: This is a stub placeholder so the module compiles. The full
- * Compose UI is implemented in the follow-up commits per the Phase 7
- * plan in the README. The app module's placeholders currently render
- * the design system for preview.
+ * Per the spec's "First 5 seconds" requirement: the splash should
+ * immediately establish the cosmic identity. No spinner, no spinner
+ * spinner — just the brand floating in space.
  */
 @Composable
-fun SplashScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+fun SplashScreen(onCompleted: () -> Unit) {
+    LaunchedEffect(Unit) {
+        // The splash is purely cosmetic — we don't block on any I/O here.
+        // Real work (Hilt init, etc.) happens in the Application class.
+        delay(1200)
+        onCompleted()
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        CosmicBackground(modifier = Modifier.fillMaxSize())
         Text(
-            "PLUTO · Splash",
-            style = PLUTOTypography.displayMedium,
-            color = PLUTOColors.FrostWhite
+            text = "PLUTO",
+            style = PLUTOTypography.brandWordmark,
+            color = PLUTOColors.FrostWhite,
+            modifier = Modifier.align(Alignment.Center)
         )
     }
 }

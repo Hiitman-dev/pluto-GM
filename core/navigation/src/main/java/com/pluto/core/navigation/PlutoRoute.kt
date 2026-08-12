@@ -1,6 +1,8 @@
 package com.pluto.core.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
@@ -40,12 +42,28 @@ object PlutoRoute {
     const val SERIES_DETAILS = "series/{seriesId}"
     const val EPISODE_DETAILS = "series/{seriesId}/season/{seasonNumber}/episode/{episodeNumber}"
 
-    const val PLAYER = "player"
+    // Player — two separate routes for movies vs series episodes to keep
+    // navigation argument parsing simple and predictable.
+    const val PLAYER_MOVIE = "player/movie/{movieId}/{positionMs}"
+    const val PLAYER_EPISODE =
+        "player/series/{seriesId}/{episodeId}/{seasonNumber}/{episodeNumber}/{positionMs}"
 
     fun movieDetails(id: Int) = "movie/$id"
     fun seriesDetails(id: Int) = "series/$id"
     fun episodeDetails(seriesId: Int, season: Int, episode: Int) =
         "series/$seriesId/season/$season/episode/$episode"
+
+    fun playerForMovie(movieId: Int, positionMs: Long = 0L): String =
+        "player/movie/$movieId/$positionMs"
+
+    fun playerForEpisode(
+        seriesId: Int,
+        seasonNumber: Int,
+        episodeNumber: Int,
+        episodeId: Int,
+        positionMs: Long = 0L
+    ): String =
+        "player/series/$seriesId/$episodeId/$seasonNumber/$episodeNumber/$positionMs"
 }
 
 /**
@@ -59,7 +77,7 @@ enum class PlutoTopDestination(
 ) {
     HOME(PlutoRoute.HOME, "Home", Icons.Outlined.Home, "Home"),
     SEARCH(PlutoRoute.SEARCH, "Discover", Icons.Outlined.Search, "Discover"),
-    DOWNLOADS(PlutoRoute.DOWNLOADS, "Downloads", androidx.compose.material.icons.Icons.Outlined.Download, "Downloads"),
-    FAVORITES(PlutoRoute.FAVORITES, "Library", androidx.compose.material.icons.Icons.Outlined.FavoriteBorder, "Library"),
+    DOWNLOADS(PlutoRoute.DOWNLOADS, "Downloads", Icons.Outlined.Download, "Downloads"),
+    FAVORITES(PlutoRoute.FAVORITES, "Library", Icons.Outlined.FavoriteBorder, "Library"),
     SETTINGS(PlutoRoute.SETTINGS, "Settings", Icons.Outlined.Settings, "Settings")
 }

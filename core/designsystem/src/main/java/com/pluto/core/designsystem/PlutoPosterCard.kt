@@ -3,8 +3,9 @@ package com.pluto.core.designsystem
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -50,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
  * Cards display: poster, title, year, rating, type badge, quality if
  * available. Optional progress bar for Continue Watching.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlutoPosterCard(
     title: String,
@@ -60,6 +62,7 @@ fun PlutoPosterCard(
     qualityLabel: String? = null,
     progress: Float? = null,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     cardWidth: Int = 140
 ) {
@@ -78,9 +81,10 @@ fun PlutoPosterCard(
         modifier = modifier
             .width(cardWidth.dp)
             .scale(scale)
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
+                onLongClick = onLongClick,
                 onClick = onClick
             )
     ) {

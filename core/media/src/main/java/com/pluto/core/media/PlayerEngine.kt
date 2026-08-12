@@ -1,5 +1,7 @@
 package com.pluto.core.media
 
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.ui.PlayerView
 import com.pluto.core.model.Source
 import kotlinx.coroutines.flow.StateFlow
 
@@ -41,6 +43,17 @@ interface PlayerEngine {
 
     /** Set volume (0.0 to 1.0). */
     fun setVolume(volume: Float)
+
+    /**
+     * Attach this engine to a [PlayerView] so its surface renders the
+     * engine's underlying player. Safe to call repeatedly — the engine
+     * creates its underlying player lazily on first attach if needed.
+     */
+    @androidx.annotation.OptIn(UnstableApi::class)
+    fun attach(view: PlayerView)
+
+    /** Detach the engine from a [PlayerView]. */
+    fun detach(view: PlayerView)
 
     /** Release all resources. Call when the player is destroyed. */
     fun release()
@@ -101,6 +114,19 @@ interface PlayerController {
     fun switchSource(source: PlaybackSource)
     fun lock()
     fun unlock()
+
+    /**
+     * Retry the current source, or fall back to the next available source
+     * if the current one has failed. Returns true if a fallback source
+     * was loaded; false if all sources have been exhausted (UI should
+     * show terminal error).
+     *
+     * Per Section 42 ("PLAYER SOURCE FALLBACK"): "If multiple legitimate
+     * sources are provided, attempt appropriate fallback. Do not invent
+     * fallback URLs."
+     */
+    fun retryOrFallback(): Boolean
+
     fun release()
 }
 
