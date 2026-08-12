@@ -59,7 +59,7 @@ class DefaultPlayerController @Inject constructor(
         when (engine.state.value) {
             PlayerState.Playing -> engine.pause()
             PlayerState.Paused, PlayerState.Ready -> engine.play()
-            is PlayerState.Error -> retryOrFallback()
+            PlayerState.Error -> retryOrFallback()
             else -> engine.play()
         }
     }

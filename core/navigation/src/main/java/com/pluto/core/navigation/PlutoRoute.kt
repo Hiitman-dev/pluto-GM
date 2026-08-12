@@ -1,8 +1,6 @@
 package com.pluto.core.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Person
@@ -61,7 +59,7 @@ enum class PlutoTopDestination(
 ) {
     HOME(PlutoRoute.HOME, "Home", Icons.Outlined.Home, "Home"),
     SEARCH(PlutoRoute.SEARCH, "Discover", Icons.Outlined.Search, "Discover"),
-    DOWNLOADS(PlutoRoute.DOWNLOADS, "Downloads", Icons.Outlined.Download, "Downloads"),
-    FAVORITES(PlutoRoute.FAVORITES, "Library", Icons.Outlined.FavoriteBorder, "Library"),
+    DOWNLOADS(PlutoRoute.DOWNLOADS, "Downloads", androidx.compose.material.icons.Icons.Outlined.Download, "Downloads"),
+    FAVORITES(PlutoRoute.FAVORITES, "Library", androidx.compose.material.icons.Icons.Outlined.FavoriteBorder, "Library"),
     SETTINGS(PlutoRoute.SETTINGS, "Settings", Icons.Outlined.Settings, "Settings")
 }
