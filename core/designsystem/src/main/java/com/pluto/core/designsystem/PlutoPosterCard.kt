@@ -245,6 +245,3 @@ fun PlutoPosterCard(
         }
     }
 }
-
-// Spacing import alias
-private val sp = androidx.compose.ui.unit.sp
