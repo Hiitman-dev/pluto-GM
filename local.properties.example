@@ -1,0 +1,16 @@
+# PLUTO Android — local configuration
+#
+# Copy this file to `local.properties` and fill in the values.
+# `local.properties` is gitignored — NEVER commit your API key.
+
+# CCloud API key. Required for real content.
+# The CCloud repo loads this from local.properties at build time.
+# Obtain it from the CCloud project maintainer.
+PLUTO_API_KEY=
+
+# Primary API server (default: https://server-hi-speed-iran.info)
+PLUTO_API_BASE_URL=https://server-hi-speed-iran.info
+
+# Fallback servers (tried in order if primary fails)
+PLUTO_FALLBACK_SERVER_1=https://hostinnegar.com
+PLUTO_FALLBACK_SERVER_2=https://windowsdiba.info

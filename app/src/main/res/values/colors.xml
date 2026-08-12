@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="cosmic_void">#03040A</color>
+    <color name="deep_space">#070B1A</color>
+    <color name="navy_drift">#0C1233</color>
+    <color name="electric_blue">#0A4DFF</color>
+    <color name="glow_blue">#2D7FFF</color>
+    <color name="ice_blue">#8AB4FF</color>
+    <color name="frost_white">#E8F4FF</color>
+    <color name="muted_star">#5A6B8C</color>
+    <color name="danger">#FF3B5C</color>
+</resources>

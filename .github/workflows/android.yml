@@ -1,0 +1,150 @@
+name: Build PLUTO
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Create local.properties (empty API key for CI)
+        run: |
+          echo "PLUTO_API_KEY=" > local.properties
+          echo "PLUTO_API_BASE_URL=https://server-hi-speed-iran.info" >> local.properties
+          echo "PLUTO_FALLBACK_SERVER_1=https://hostinnegar.com" >> local.properties
+          echo "PLUTO_FALLBACK_SERVER_2=https://windowsdiba.info" >> local.properties
+
+      - name: Run unit tests
+        run: ./gradlew test
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+
+      - name: Run lint
+        run: ./gradlew lintDebug
+
+      - name: Upload debug APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluto-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluto-test-results
+          path: |
+            **/build/test-results/**/*.xml
+            **/build/reports/lint-results-*.xml
+          if-no-files-found: warn
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', 'gradle/libs.versions.toml') }}
+          restore-keys: gradle-${{ runner.os }}-
+
+      - name: Decode signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.PLUTO_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 --decode > app/keystore.jks
+          fi
+
+      - name: Create keystore properties
+        env:
+          KEY_ALIAS: ${{ secrets.PLUTO_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.PLUTO_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.PLUTO_STORE_PASSWORD }}
+        run: |
+          if [ -n "$KEY_ALIAS" ]; then
+            echo "storePassword=$STORE_PASSWORD" > key.properties
+            echo "keyPassword=$KEY_PASSWORD" >> key.properties
+            echo "keyAlias=$KEY_ALIAS" >> key.properties
+            echo "storeFile=keystore.jks" >> key.properties
+          fi
+
+      - name: Create local.properties
+        env:
+          PLUTO_API_KEY: ${{ secrets.PLUTO_API_KEY }}
+        run: |
+          echo "PLUTO_API_KEY=${PLUTO_API_KEY}" > local.properties
+          echo "PLUTO_API_BASE_URL=https://server-hi-speed-iran.info" >> local.properties
+          echo "PLUTO_FALLBACK_SERVER_1=https://hostinnegar.com" >> local.properties
+          echo "PLUTO_FALLBACK_SERVER_2=https://windowsdiba.info" >> local.properties
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease
+
+      - name: Rename APK
+        run: |
+          mkdir -p release
+          cp app/build/outputs/apk/release/app-universal-release.apk release/PLUTO-universal.apk || \
+          cp app/build/outputs/apk/release/app-release.apk release/PLUTO-universal.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PLUTO ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release/PLUTO-universal.apk
